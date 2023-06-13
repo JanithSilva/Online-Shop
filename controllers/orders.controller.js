@@ -1,5 +1,6 @@
 const Order = require('../models/order.model');
 const User = require('../models/user.model');
+const stripe = require("stripe")('sk_test_51NIVVECWdFOLxNfMWlSwKGi7qtYB7T9bvXWfQ6pstBC7R9LzH79tFH0cXtflkEwJWQtl1IpT758sgJRq7UU4jixV00KxCt9oEA');
 
 async function getOrders(req, res, next){
     try {
@@ -30,10 +31,41 @@ async function addOrder(req, res, next){
 
     req.session.cart = null;
 
-    res.redirect('/orders');
+    //stripe checkoout
+    const session = await stripe.checkout.sessions.create({
+        line_items: cart.items.map(function(item){
+            return  {
+                price_data: {
+                    currency : 'usd',
+                    product_data : {
+                        name : item.product.title
+                    },
+                    unit_amount : +item.product.price.toFixed(2)*100
+                },
+                quantity: item.quantity,
+              }
+        }),
+        mode: 'payment',
+        success_url: `http://localhost:3000/orders/success`,
+        cancel_url: `http://localhost:3000/orders/faliure`,
+      });
+    
+      res.redirect(303, session.url);
+   
+}
+
+function getSucess(req, res){
+    res.render('customer/orders/success');
+ }
+
+function getFaliure(req, res){
+    res.render('customer/orders/faliure');
 }
 
 module.exports = {
     addOrder: addOrder,
-    getOrders: getOrders
+    getOrders: getOrders,
+    getSucess: getSucess,
+    getFaliure: getFaliure
+
 }
